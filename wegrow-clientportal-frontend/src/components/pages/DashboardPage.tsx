@@ -32,8 +32,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onGiveFeedback,
   onOpenQRAttendance
 }) => {
-  const { client, user, showToast } = usePortal();
+  const { client, user, loading, showToast } = usePortal();
   if (!client) {
+    if (loading) {
+      return (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 24px', margin: '40px auto', maxWidth: 560 }}>
+          <div style={{ display: 'inline-block', width: 34, height: 34, border: '3px solid #EDE9FE', borderTopColor: '#7C3AED', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: 14 }} />
+          <h3 style={{ marginTop: 16 }}>Loading client dossier…</h3>
+          <p className="muted" style={{ maxWidth: '45ch', margin: '8px auto 20px' }}>
+            Preparing transformation metrics for {user?.name || 'your account'}…
+          </p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      );
+    }
     return (
       <div className="card" style={{ textAlign: 'center', padding: '60px 24px', margin: '40px auto', maxWidth: 560 }}>
         <Icon name="building" size={48} className="muted" />

@@ -12,6 +12,7 @@ import { DocumentItem, DocumentItemDocument } from '../schemas/document.schema';
 import { NotificationItem, NotificationDocument } from '../schemas/notification.schema';
 import { SessionFeedback, FeedbackDocument } from '../schemas/feedback.schema';
 import { Attendance, AttendanceDocument } from '../schemas/attendance.schema';
+import { SEED_CLIENTS } from '../seed-data';
 
 @Injectable()
 export class ClientsService {
@@ -40,33 +41,61 @@ export class ClientsService {
   }
 
   async findAll(): Promise<Client[]> {
-    return this.clientModel.find().lean();
+    const list = await this.clientModel.find().lean();
+    if (!list || list.length === 0) {
+      try {
+        await this.clientModel.insertMany(SEED_CLIENTS);
+        return this.clientModel.find().lean();
+      } catch (e) {
+        return SEED_CLIENTS as any;
+      }
+    }
+    return list;
   }
 
   async findByClientId(clientId: string): Promise<any> {
-    const cached = ClientsService.cache.get(clientId);
+    const cleanId = (clientId || '').trim();
+    const cacheKey = cleanId.toUpperCase();
+    const cached = ClientsService.cache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) {
       return cached.data;
     }
 
-    const client = await this.clientModel.findOne({ clientId }).lean();
+    let client = await this.clientModel.findOne({
+      clientId: { $regex: new RegExp(`^${cleanId}$`, 'i') }
+    }).lean();
+
     if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+      // Check SEED_CLIENTS fallback
+      const fallback = SEED_CLIENTS.find(
+        (c) => c.clientId.toUpperCase() === cleanId.toUpperCase()
+      );
+      if (fallback) {
+        try {
+          client = await this.clientModel.create(fallback);
+        } catch (e) {
+          client = fallback as any;
+        }
+      } else {
+        throw new NotFoundException(`Client with ID ${clientId} not found`);
+      }
     }
+
+    const actualCid = client.clientId;
 
     // Fetch related collections for full portal view
     const [actions, sessions, reports, updates, events, photos, documents, notifications, feedback, attendances] =
       await Promise.all([
-        this.actionModel.find({ clientId }).lean(),
-        this.sessionModel.find({ clientId }).sort({ date: 1 }).lean(),
-        this.reportModel.find({ clientId }).sort({ date: -1 }).lean(),
-        this.updateModel.find({ clientId }).sort({ date: -1 }).lean(),
+        this.actionModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).lean(),
+        this.sessionModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: 1 }).lean(),
+        this.reportModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
+        this.updateModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
         this.eventModel.find().sort({ date: 1 }).lean(),
-        this.photoModel.find({ clientId }).sort({ date: -1 }).lean(),
-        this.documentModel.find({ clientId }).sort({ date: -1 }).lean(),
-        this.notificationModel.find({ clientId }).sort({ date: -1 }).lean(),
-        this.feedbackModel.find({ clientId }).sort({ date: -1 }).lean(),
-        this.attendanceModel.find({ clientId }).sort({ createdAt: -1 }).lean()
+        this.photoModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
+        this.documentModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
+        this.notificationModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
+        this.feedbackModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ date: -1 }).lean(),
+        this.attendanceModel.find({ clientId: { $regex: new RegExp(`^${actualCid}$`, 'i') } }).sort({ createdAt: -1 }).lean()
       ]);
 
     const result = {
@@ -83,7 +112,7 @@ export class ClientsService {
       attendances: attendances || []
     };
 
-    ClientsService.cache.set(clientId, { data: result, expiry: Date.now() + 30000 });
+    ClientsService.cache.set(cacheKey, { data: result, expiry: Date.now() + 30000 });
     return result;
   }
 

@@ -20,7 +20,8 @@ import { AttendanceModule } from './attendance/attendance.module';
       useFactory: async (configService: ConfigService) => ({
         uri:
           configService.get<string>('MONGODB_URI') ||
-          'mongodb://127.0.0.1:27017/wegrow_portal',
+          process.env.MONGODB_URI ||
+          'mongodb+srv://Raj:iT3Wqx0axmZv1dHI@cluster0.86ttxfk.mongodb.net/wegrow_portal?appName=Cluster0',
         serverSelectionTimeoutMS: 15000,
         maxPoolSize: 20,
         minPoolSize: 1,

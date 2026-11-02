@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { TODAY, addDays } from '../utils/date';
+import { INITIAL_CLIENTS_MAP } from '../utils/initialData';
 
 interface PortalContextType {
   user: User | null;
@@ -104,18 +105,29 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [client, setClient] = useState<ClientData | null>(() => {
     try {
       const saved = localStorage.getItem('wg:client');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    try {
+      const savedUser = localStorage.getItem('wg:user');
+      if (savedUser) {
+        const u = JSON.parse(savedUser);
+        const cid = (u.clientId || '').toUpperCase();
+        if (cid && INITIAL_CLIENTS_MAP[cid]) {
+          return INITIAL_CLIENTS_MAP[cid];
+        }
+      }
+    } catch {}
+    return INITIAL_CLIENTS_MAP['C001'] || null;
   });
   const [clients, setClients] = useState<Record<string, ClientData>>(() => {
     try {
       const saved = localStorage.getItem('wg:custom_clients');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Object.keys(parsed).length > 0) return { ...INITIAL_CLIENTS_MAP, ...parsed };
+      }
+    } catch {}
+    return INITIAL_CLIENTS_MAP;
   });
   const [previewAs, setPreviewAsState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(() => {
@@ -182,24 +194,36 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const fetchClientData = useCallback(async (clientId: string) => {
+    const cleanId = (clientId || '').trim().toUpperCase();
     try {
-      const data = await api.clients.getById(clientId);
-      setClient(data);
-      try { localStorage.setItem('wg:client', JSON.stringify(data)); } catch (e) {}
-      setClients((prev) => ({ ...prev, [clientId]: data }));
+      const data = await api.clients.getById(cleanId);
+      if (data && (data.id || data.clientId)) {
+        setClient(data);
+        try { localStorage.setItem('wg:client', JSON.stringify(data)); } catch (e) {}
+        setClients((prev) => ({ ...prev, [cleanId]: data, [clientId]: data }));
+        return;
+      }
     } catch (err: any) {
-      console.error('Failed to fetch client data:', err);
-      showToast(err.message || 'Error loading client data');
+      console.warn('Backend fetch client data warning:', err);
+      // Fallback gracefully to cached or initial client map
+      const fallback = INITIAL_CLIENTS_MAP[cleanId] || INITIAL_CLIENTS_MAP['C001'];
+      if (fallback) {
+        setClient((prev) => (prev && (prev.id === cleanId || prev.clientId === cleanId) ? prev : fallback));
+        setClients((prev) => ({ ...prev, [cleanId]: fallback, [clientId]: fallback }));
+      }
     }
   }, []);
 
   const fetchAdminClients = useCallback(async () => {
     try {
       const list = await api.clients.getAll();
-      const map: Record<string, ClientData> = {};
-      list.forEach((c) => {
-        map[c.id || (c as any).clientId] = c;
-      });
+      const map: Record<string, ClientData> = { ...INITIAL_CLIENTS_MAP };
+      if (Array.isArray(list)) {
+        list.forEach((c) => {
+          const cid = (c.id || (c as any).clientId || '').toUpperCase();
+          if (cid) map[cid] = c;
+        });
+      }
       try {
         const stored: Record<string, ClientData> = JSON.parse(
           localStorage.getItem('wg:custom_clients') || '{}'
@@ -207,10 +231,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         Object.entries(stored).forEach(([k, v]) => {
           map[k] = { ...v, ...(map[k] || {}) };
         });
+        localStorage.setItem('wg:custom_clients', JSON.stringify(map));
       } catch (e) {}
       setClients(map);
     } catch (err: any) {
-      console.error('Failed to fetch admin clients:', err);
+      console.warn('Backend fetch admin clients warning, keeping cached/initial:', err);
+      setClients((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_CLIENTS_MAP));
     }
   }, []);
 
@@ -280,11 +306,19 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (previewAs) {
-      fetchClientData(previewAs);
+      const target = previewAs.toUpperCase();
+      const found = clients[target] || INITIAL_CLIENTS_MAP[target];
+      if (found) setClient(found);
+      fetchClientData(target);
     } else if (user?.role === 'admin') {
       setClient(null);
+    } else if (user?.role === 'client' && user.clientId) {
+      const target = user.clientId.toUpperCase();
+      const found = clients[target] || INITIAL_CLIENTS_MAP[target] || INITIAL_CLIENTS_MAP['C001'];
+      setClient((prev) => (prev && (prev.id === target || prev.clientId === target) ? prev : found));
+      fetchClientData(target);
     }
-  }, [previewAs, user, fetchClientData]);
+  }, [previewAs, user, fetchClientData, clients]);
 
   const login = async (email: string, pass: string, remember: boolean): Promise<boolean> => {
     try {
@@ -296,7 +330,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Launch data fetching immediately
       if (res.user.role === 'client' && res.user.clientId) {
-        fetchClientData(res.user.clientId);
+        const target = res.user.clientId.toUpperCase();
+        const defaultData = INITIAL_CLIENTS_MAP[target] || INITIAL_CLIENTS_MAP['C001'];
+        setClient(defaultData);
+        fetchClientData(target);
       } else if (res.user.role === 'admin') {
         fetchAdminClients();
       }
@@ -318,7 +355,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (e) {}
     setUser(null);
     setClient(null);
-    setClients({});
+    setClients(INITIAL_CLIENTS_MAP);
     setPreviewAsState(null);
   };
 

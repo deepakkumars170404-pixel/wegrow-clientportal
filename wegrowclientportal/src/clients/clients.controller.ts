@@ -32,7 +32,10 @@ export class ClientsController {
   @Get(':id')
   async getClientById(@Param('id') id: string, @Request() req: any) {
     // Strict client isolation: non-admins can only access their assigned clientId
-    if (req.user.role !== 'admin' && req.user.clientId !== id) {
+    if (
+      req.user.role !== 'admin' &&
+      String(req.user.clientId || '').toUpperCase() !== String(id || '').toUpperCase()
+    ) {
       throw new ForbiddenException('Access denied: You can only view your own client portal.');
     }
     return this.clientsService.findByClientId(id);
@@ -44,7 +47,10 @@ export class ClientsController {
     @Body() patch: any,
     @Request() req: any
   ) {
-    if (req.user.role !== 'admin' && req.user.clientId !== id) {
+    if (
+      req.user.role !== 'admin' &&
+      String(req.user.clientId || '').toUpperCase() !== String(id || '').toUpperCase()
+    ) {
       throw new ForbiddenException('Access denied: You can only update your own profile.');
     }
     // Only allow updating contact fields

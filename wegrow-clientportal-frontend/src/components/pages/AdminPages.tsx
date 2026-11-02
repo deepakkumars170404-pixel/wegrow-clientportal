@@ -181,7 +181,7 @@ export const AdminOverviewPage: React.FC<{
   onOpenSessionSummary,
   onOpenQRAttendance
 }) => {
-  const { clients, user } = usePortal();
+  const { clients, user, loading } = usePortal();
   const navigate = useNavigate();
   const cl = Object.values(clients).filter((c) => c.status !== 'Archived');
 
@@ -228,7 +228,7 @@ export const AdminOverviewPage: React.FC<{
             {greeting()}, {user?.name?.split(' ')[0] || 'Consultant'}
           </h1>
           <p>
-            {fmtL(TODAY)} · {cl.length} active client portal{cl.length === 1 ? '' : 's'}
+            {fmtL(TODAY)} · {loading && cl.length === 0 ? 'Syncing active client portals…' : `${cl.length} active client portal${cl.length === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="qa">
@@ -261,15 +261,24 @@ export const AdminOverviewPage: React.FC<{
       </div>
 
       {cl.length === 0 ? (
-        <div className="card empty" style={{ padding: '56px 24px', textAlign: 'center' }}>
-          <b style={{ fontSize: 18 }}>No client portals yet</b>
-          <p style={{ margin: '8px auto 20px', maxWidth: '46ch', color: 'var(--ink-3)' }}>
-            Add your first client to initialize their private transformation portal.
-          </p>
-          <button className="btn primary" onClick={onOpenAddClient}>
-            <Icon name="plus" /> Add a client
-          </button>
-        </div>
+        loading ? (
+          <div className="card" style={{ padding: '60px 24px', textAlign: 'center' }}>
+            <div style={{ display: 'inline-block', width: 34, height: 34, border: '3px solid #EDE9FE', borderTopColor: '#7C3AED', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: 14 }} />
+            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Loading client transformation dossiers…</div>
+            <div className="small muted" style={{ marginTop: 4 }}>Connecting live database records</div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : (
+          <div className="card empty" style={{ padding: '56px 24px', textAlign: 'center' }}>
+            <b style={{ fontSize: 18 }}>No client portals yet</b>
+            <p style={{ margin: '8px auto 20px', maxWidth: '46ch', color: 'var(--ink-3)' }}>
+              Add your first client to initialize their private transformation portal.
+            </p>
+            <button className="btn primary" onClick={onOpenAddClient}>
+              <Icon name="plus" /> Add a client
+            </button>
+          </div>
+        )
       ) : (
         <>
           <section className="grid g4">

@@ -15,7 +15,18 @@ export const ActionPlanPage: React.FC<ActionPlanPageProps> = ({ onOpenAction, on
   const [activeView, setActiveView] = useState<'timeline' | 'list' | 'calendar'>('timeline');
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
-  if (!client) return null;
+  if (!client) {
+    return (
+      <div className="card" style={{ textAlign: 'center', padding: '60px 24px', margin: '40px auto', maxWidth: 560 }}>
+        <div style={{ display: 'inline-block', width: 34, height: 34, border: '3px solid #EDE9FE', borderTopColor: '#7C3AED', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: 14 }} />
+        <h3 style={{ marginTop: 16 }}>Loading action plan…</h3>
+        <p className="muted" style={{ maxWidth: '45ch', margin: '8px auto 20px' }}>
+          Preparing transformation roadmap and milestones…
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   const monthProgress = (n: number) => {
     const list = client.actions.filter((a) => a.month === n);

@@ -8,6 +8,7 @@
     "wegrowclientportal"
   ],
   "scripts": {
+    "postinstall": "npm --prefix wegrowclientportal install",
     "build": "npm --prefix wegrowclientportal run build",
     "start": "npm --prefix wegrowclientportal run start:prod",
     "build:frontend": "npm --prefix wegrow-clientportal-frontend run build",

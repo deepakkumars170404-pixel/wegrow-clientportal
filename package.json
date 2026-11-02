@@ -15,6 +15,7 @@
     "build:backend": "npm --prefix wegrowclientportal run build",
     "dev:frontend": "npm --prefix wegrow-clientportal-frontend run dev",
     "dev:backend": "npm --prefix wegrowclientportal run dev",
-    "start:backend": "npm --prefix wegrowclientportal run start:prod"
+    "start:backend": "npm --prefix wegrowclientportal run start:prod",
+    "db:view": "npm --prefix wegrowclientportal run db:view"
   }
 }

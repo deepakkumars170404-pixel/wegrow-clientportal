@@ -44,3 +44,4 @@ Thumbs.db
 # Backup git metadata
 *.git_*_bak/
 .git_*_bak/
+

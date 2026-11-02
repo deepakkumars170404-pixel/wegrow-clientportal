@@ -99,3 +99,4 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173` and backend runs on `http://localhost:3000/api`.
+

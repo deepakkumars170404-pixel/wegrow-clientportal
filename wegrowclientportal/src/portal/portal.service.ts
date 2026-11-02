@@ -6,7 +6,8 @@ import { BusinessUpdate, UpdateDocument } from '../schemas/update.schema';
 import { ClientEvent, EventDocument } from '../schemas/event.schema';
 import { SessionFeedback, FeedbackDocument } from '../schemas/feedback.schema';
 import { NotificationItem, NotificationDocument } from '../schemas/notification.schema';
-import { TODAY } from '../seed-data';
+
+const getToday = () => new Date().toISOString().split('T')[0];
 
 @Injectable()
 export class PortalService {
@@ -26,7 +27,7 @@ export class PortalService {
 
     action.comments.push({
       by: authorName,
-      date: TODAY,
+      date: getToday(),
       text
     });
     await action.save();
@@ -49,7 +50,7 @@ export class PortalService {
       existing.relevance = relevance;
       existing.improve = improve;
       existing.comments = comments;
-      existing.date = TODAY;
+      existing.date = getToday();
       await existing.save();
       return existing;
     }
@@ -62,7 +63,7 @@ export class PortalService {
       relevance,
       improve,
       comments,
-      date: TODAY
+      date: getToday()
     });
   }
 
@@ -81,7 +82,7 @@ export class PortalService {
       type,
       cat,
       body,
-      date: TODAY
+      date: getToday()
     });
 
     // Also dispatch notification to the client
@@ -90,7 +91,7 @@ export class PortalService {
       notifId: 'NP' + Date.now(),
       cat: type === 'Action Required' ? 'Important' : 'Important',
       text: `New update: ${title}`,
-      date: TODAY,
+      date: getToday(),
       read: false,
       link: '#/updates'
     });

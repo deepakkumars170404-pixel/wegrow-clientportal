@@ -24,52 +24,23 @@ export class AttendanceService {
 
   async getSessionInfo(sessionId: string, clientId?: string): Promise<any> {
     const query: any = { sessionId };
-    if (clientId) query.clientId = clientId;
+    if (clientId) query.clientId = { $regex: new RegExp(`^${clientId}$`, 'i') };
 
-    let session: any = null;
-    let client: any = null;
+    const session = (await this.sessionModel.findOne(query).lean()) ||
+      (!clientId ? await this.sessionModel.findOne({
+        $or: [{ sessionId }, { id: sessionId }]
+      }).lean() : null);
 
-    try {
-      session = await this.sessionModel.findOne(query).lean();
-      if (!session && !clientId) {
-        // Fallback: try finding by _id or case-insensitive
-        session = await this.sessionModel.findOne({
-          $or: [{ sessionId }, { id: sessionId }]
-        }).lean();
-      }
-
-      if (session) {
-        client = await this.clientModel.findOne({ clientId: session.clientId }).lean();
-      }
-    } catch (e) {
-      this.logger.warn(`DB read error in getSessionInfo: ${e.message}`);
+    if (!session) {
+      throw new NotFoundException(`Session with ID ${sessionId} not found in database`);
     }
 
-    // Default fallback info if database is bootstrapping or session not found
-    if (!session) {
-      session = {
-        sessionId: sessionId || 'S1',
-        clientId: clientId || 'C001',
-        title: 'Business Transformation & Review Session',
-        mode: 'In person',
-        date: new Date().toISOString().split('T')[0],
-        time: '10:00 AM – 1:00 PM',
-        location: 'Client Headquarters, Conference Hall',
-        consultant: 'Dr. Thavabalan (Lead Consultant, WeGrow)'
-      };
-      client = {
-        clientId: session.clientId,
-        company: 'Meridian Foods Pvt. Ltd.',
-        short: 'MF',
-        color: '#C2410C'
-      };
-    } else if (!client) {
-      client = {
-        clientId: session.clientId,
-        company: 'Client Enterprise',
-        short: 'CE',
-        color: '#4f46e5'
-      };
+    const client = await this.clientModel.findOne({
+      clientId: { $regex: new RegExp(`^${session.clientId}$`, 'i') }
+    }).lean();
+
+    if (!client) {
+      throw new NotFoundException(`Client dossier for session ${sessionId} not found in database`);
     }
 
     const attendees = await this.getAttendees(session.sessionId, session.clientId);

@@ -15,7 +15,6 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { TODAY, addDays } from '../utils/date';
-import { INITIAL_CLIENTS_MAP } from '../utils/initialData';
 
 interface PortalContextType {
   user: User | null;
@@ -107,27 +106,17 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem('wg:client');
       if (saved) return JSON.parse(saved);
     } catch {}
-    try {
-      const savedUser = localStorage.getItem('wg:user');
-      if (savedUser) {
-        const u = JSON.parse(savedUser);
-        const cid = (u.clientId || '').toUpperCase();
-        if (cid && INITIAL_CLIENTS_MAP[cid]) {
-          return INITIAL_CLIENTS_MAP[cid];
-        }
-      }
-    } catch {}
-    return INITIAL_CLIENTS_MAP['C001'] || null;
+    return null;
   });
   const [clients, setClients] = useState<Record<string, ClientData>>(() => {
     try {
       const saved = localStorage.getItem('wg:custom_clients');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Object.keys(parsed).length > 0) return { ...INITIAL_CLIENTS_MAP, ...parsed };
+        if (Object.keys(parsed).length > 0) return parsed;
       }
     } catch {}
-    return INITIAL_CLIENTS_MAP;
+    return {};
   });
   const [previewAs, setPreviewAsState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(() => {
@@ -195,29 +184,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const fetchClientData = useCallback(async (clientId: string) => {
     const cleanId = (clientId || '').trim().toUpperCase();
+    if (!cleanId) return;
     try {
       const data = await api.clients.getById(cleanId);
       if (data && (data.id || data.clientId)) {
         setClient(data);
         try { localStorage.setItem('wg:client', JSON.stringify(data)); } catch (e) {}
         setClients((prev) => ({ ...prev, [cleanId]: data, [clientId]: data }));
-        return;
       }
     } catch (err: any) {
-      console.warn('Backend fetch client data warning:', err);
-      // Fallback gracefully to cached or initial client map
-      const fallback = INITIAL_CLIENTS_MAP[cleanId] || INITIAL_CLIENTS_MAP['C001'];
-      if (fallback) {
-        setClient((prev) => (prev && (prev.id === cleanId || prev.clientId === cleanId) ? prev : fallback));
-        setClients((prev) => ({ ...prev, [cleanId]: fallback, [clientId]: fallback }));
-      }
+      console.error('Failed to fetch client data from database:', err);
+      showToast(err.message || 'Error loading client data from database');
     }
   }, []);
 
   const fetchAdminClients = useCallback(async () => {
     try {
       const list = await api.clients.getAll();
-      const map: Record<string, ClientData> = { ...INITIAL_CLIENTS_MAP };
+      const map: Record<string, ClientData> = {};
       if (Array.isArray(list)) {
         list.forEach((c) => {
           const cid = (c.id || (c as any).clientId || '').toUpperCase();
@@ -225,18 +209,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       }
       try {
-        const stored: Record<string, ClientData> = JSON.parse(
-          localStorage.getItem('wg:custom_clients') || '{}'
-        );
-        Object.entries(stored).forEach(([k, v]) => {
-          map[k] = { ...v, ...(map[k] || {}) };
-        });
         localStorage.setItem('wg:custom_clients', JSON.stringify(map));
       } catch (e) {}
       setClients(map);
     } catch (err: any) {
-      console.warn('Backend fetch admin clients warning, keeping cached/initial:', err);
-      setClients((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_CLIENTS_MAP));
+      console.error('Failed to fetch admin clients from database:', err);
+      showToast(err.message || 'Error loading clients from database');
     }
   }, []);
 
@@ -307,15 +285,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (previewAs) {
       const target = previewAs.toUpperCase();
-      const found = clients[target] || INITIAL_CLIENTS_MAP[target];
+      const found = clients[target];
       if (found) setClient(found);
       fetchClientData(target);
     } else if (user?.role === 'admin') {
       setClient(null);
     } else if (user?.role === 'client' && user.clientId) {
       const target = user.clientId.toUpperCase();
-      const found = clients[target] || INITIAL_CLIENTS_MAP[target] || INITIAL_CLIENTS_MAP['C001'];
-      setClient((prev) => (prev && (prev.id === target || prev.clientId === target) ? prev : found));
+      const found = clients[target];
+      if (found) setClient(found);
       fetchClientData(target);
     }
   }, [previewAs, user, fetchClientData, clients]);
@@ -328,14 +306,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try { localStorage.setItem('wg:user', JSON.stringify(res.user)); } catch (e) {}
       setPreviewAsState(null);
 
-      // Launch data fetching immediately
+      // Launch data fetching from database immediately
       if (res.user.role === 'client' && res.user.clientId) {
-        const target = res.user.clientId.toUpperCase();
-        const defaultData = INITIAL_CLIENTS_MAP[target] || INITIAL_CLIENTS_MAP['C001'];
-        setClient(defaultData);
-        fetchClientData(target);
+        await fetchClientData(res.user.clientId);
       } else if (res.user.role === 'admin') {
-        fetchAdminClients();
+        await fetchAdminClients();
       }
 
       setLoading(false);
@@ -350,12 +325,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const logout = () => {
     api.auth.logout();
     try {
+      localStorage.removeItem('wg:token');
       localStorage.removeItem('wg:user');
       localStorage.removeItem('wg:client');
+      localStorage.removeItem('wg:custom_clients');
     } catch (e) {}
     setUser(null);
     setClient(null);
-    setClients(INITIAL_CLIENTS_MAP);
+    setClients({});
     setPreviewAsState(null);
   };
 

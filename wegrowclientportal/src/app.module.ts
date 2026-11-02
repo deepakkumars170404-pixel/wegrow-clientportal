@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AppController } from './app.controller';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
@@ -31,6 +32,7 @@ import { AttendanceModule } from './attendance/attendance.module';
     PortalModule,
     AdminModule,
     AttendanceModule
-  ]
+  ],
+  controllers: [AppController]
 })
 export class AppModule {}

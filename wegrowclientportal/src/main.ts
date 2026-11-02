@@ -6,8 +6,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
-  // Global API prefix
-  app.setGlobalPrefix('api');
+  // Global API prefix with root and health endpoints excluded
+  app.setGlobalPrefix('api', {
+    exclude: ['/', 'health']
+  });
 
   // Enable CORS for React frontend (Vite port 5173 or other ports)
   app.enableCors({

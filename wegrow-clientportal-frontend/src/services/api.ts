@@ -1,6 +1,15 @@
 import { User, ClientData, SessionFeedback, BusinessUpdate } from '../types';
 
-const API_BASE = String((import.meta as any).env?.VITE_API_URL || '/api').trim().replace(/\/+$/, '');
+function resolveApiBase(): string {
+  const envUrl = String((import.meta as any).env?.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  if (!envUrl) return '/api';
+  if (!envUrl.endsWith('/api')) {
+    return `${envUrl}/api`;
+  }
+  return envUrl;
+}
+
+const API_BASE = resolveApiBase();
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('wg:token');

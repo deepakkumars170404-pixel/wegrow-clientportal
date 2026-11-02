@@ -7,7 +7,7 @@ services:
     region: oregon
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api/clients
+    healthCheckPath: /health
     envVars:
       - key: PORT
         value: 10000

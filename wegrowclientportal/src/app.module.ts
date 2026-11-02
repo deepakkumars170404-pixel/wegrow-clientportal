@@ -21,10 +21,10 @@ import { AttendanceModule } from './attendance/attendance.module';
         uri:
           configService.get<string>('MONGODB_URI') ||
           'mongodb://127.0.0.1:27017/wegrow_portal',
-        serverSelectionTimeoutMS: 8000,
+        serverSelectionTimeoutMS: 15000,
         maxPoolSize: 20,
-        minPoolSize: 2,
-        connectTimeoutMS: 10000,
+        minPoolSize: 1,
+        connectTimeoutMS: 15000,
         socketTimeoutMS: 45000,
         autoIndex: false
       }),

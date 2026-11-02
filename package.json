@@ -8,7 +8,8 @@
     "wegrowclientportal"
   ],
   "scripts": {
-    "build": "npm --prefix wegrow-clientportal-frontend run build",
+    "build": "npm --prefix wegrowclientportal run build",
+    "start": "npm --prefix wegrowclientportal run start:prod",
     "build:frontend": "npm --prefix wegrow-clientportal-frontend run build",
     "build:backend": "npm --prefix wegrowclientportal run build",
     "dev:frontend": "npm --prefix wegrow-clientportal-frontend run dev",
@@ -16,4 +17,3 @@
     "start:backend": "npm --prefix wegrowclientportal run start:prod"
   }
 }
-

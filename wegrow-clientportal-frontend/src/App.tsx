@@ -165,10 +165,34 @@ export const App: React.FC = () => {
 
   if (loading && !user) {
     return (
-      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="serif" style={{ fontSize: 26, marginBottom: 8 }}>WeGrow Client Portal</div>
-          <div className="small muted">Connecting to database…</div>
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #0F0A1E 0%, #1A103C 100%)', color: '#FFFFFF' }}>
+        <div style={{ textAlign: 'center', maxWidth: 360, padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <img src="/wegrow-logo.webp" alt="WeGrow B School" style={{ height: 48, objectFit: 'contain' }} />
+          </div>
+          <div className="serif" style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#FFFFFF' }}>
+            WeGrow Client Portal
+          </div>
+          <div style={{ fontSize: 13, color: '#DDD6FE', marginBottom: 20 }}>
+            Connecting to workspace…
+          </div>
+          <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: '60%',
+                height: '100%',
+                background: 'linear-gradient(90deg, #7C3AED, #10B981)',
+                borderRadius: 4,
+                animation: 'loadingSweep 1.4s ease-in-out infinite'
+              }}
+            />
+          </div>
+          <style>{`
+            @keyframes loadingSweep {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(200%); }
+            }
+          `}</style>
         </div>
       </div>
     );

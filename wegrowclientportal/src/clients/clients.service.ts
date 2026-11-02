@@ -29,11 +29,26 @@ export class ClientsService {
     @InjectModel(Attendance.name) private attendanceModel: Model<AttendanceDocument>
   ) {}
 
+  private static cache = new Map<string, { data: any; expiry: number }>();
+
+  static invalidateCache(clientId?: string) {
+    if (clientId) {
+      ClientsService.cache.delete(clientId);
+    } else {
+      ClientsService.cache.clear();
+    }
+  }
+
   async findAll(): Promise<Client[]> {
     return this.clientModel.find().lean();
   }
 
   async findByClientId(clientId: string): Promise<any> {
+    const cached = ClientsService.cache.get(clientId);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
+
     const client = await this.clientModel.findOne({ clientId }).lean();
     if (!client) {
       throw new NotFoundException(`Client with ID ${clientId} not found`);
@@ -54,7 +69,7 @@ export class ClientsService {
         this.attendanceModel.find({ clientId }).sort({ createdAt: -1 }).lean()
       ]);
 
-    return {
+    const result = {
       ...client,
       actions,
       sessions,
@@ -67,9 +82,13 @@ export class ClientsService {
       feedback,
       attendances: attendances || []
     };
+
+    ClientsService.cache.set(clientId, { data: result, expiry: Date.now() + 30000 });
+    return result;
   }
 
   async updateProfile(clientId: string, patch: Partial<Client>): Promise<Client> {
+    ClientsService.invalidateCache(clientId);
     const updated = await this.clientModel.findOneAndUpdate(
       { clientId },
       { $set: patch },

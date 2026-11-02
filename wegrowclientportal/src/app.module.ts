@@ -21,8 +21,12 @@ import { AttendanceModule } from './attendance/attendance.module';
         uri:
           configService.get<string>('MONGODB_URI') ||
           'mongodb://127.0.0.1:27017/wegrow_portal',
-        // In case local MongoDB is offline or bootstrapping, retry softly
-        serverSelectionTimeoutMS: 5000
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 20,
+        minPoolSize: 2,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        autoIndex: false
       }),
       inject: [ConfigService]
     }),

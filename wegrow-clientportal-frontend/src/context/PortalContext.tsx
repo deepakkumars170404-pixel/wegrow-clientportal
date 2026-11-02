@@ -93,11 +93,36 @@ const MONTH_TEMPLATE: [string, string][] = [
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [client, setClient] = useState<ClientData | null>(null);
-  const [clients, setClients] = useState<Record<string, ClientData>>({});
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('wg:user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [client, setClient] = useState<ClientData | null>(() => {
+    try {
+      const saved = localStorage.getItem('wg:client');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [clients, setClients] = useState<Record<string, ClientData>>(() => {
+    try {
+      const saved = localStorage.getItem('wg:custom_clients');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [previewAs, setPreviewAsState] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    const hasToken = Boolean(localStorage.getItem('wg:token'));
+    const hasCachedUser = Boolean(localStorage.getItem('wg:user'));
+    return hasToken && !hasCachedUser;
+  });
 
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>(() => {
     try {
@@ -160,6 +185,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const data = await api.clients.getById(clientId);
       setClient(data);
+      try { localStorage.setItem('wg:client', JSON.stringify(data)); } catch (e) {}
       setClients((prev) => ({ ...prev, [clientId]: data }));
     } catch (err: any) {
       console.error('Failed to fetch client data:', err);
@@ -202,6 +228,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     let mounted = true;
 
+    // Pre-warm Render backend on initial app load (prevents free-tier spin down delays)
+    const baseApi = String((import.meta as any).env?.VITE_API_URL || '').trim().replace(/\/+$/, '');
+    const warmupUrl = baseApi ? (baseApi.endsWith('/api') ? baseApi.replace(/\/api$/, '/health') : `${baseApi}/health`) : '/health';
+    fetch(warmupUrl, { mode: 'cors' }).catch(() => {});
+
+    const keepAlive = setInterval(() => {
+      fetch(warmupUrl, { mode: 'cors' }).catch(() => {});
+    }, 10 * 60 * 1000);
+
     async function initSession() {
       const token = localStorage.getItem('wg:token');
       if (!token) {
@@ -213,16 +248,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const profile = await api.auth.getProfile();
         if (mounted && profile) {
           setUser(profile);
+          try { localStorage.setItem('wg:user', JSON.stringify(profile)); } catch (e) {}
           if (profile.role === 'client' && profile.clientId) {
             await fetchClientData(profile.clientId);
           } else if (profile.role === 'admin') {
             await fetchAdminClients();
           }
         }
-      } catch (err) {
-        console.warn('Session expired or backend offline:', err);
-        api.auth.logout();
-        if (mounted) setUser(null);
+      } catch (err: any) {
+        console.warn('Session check fallback:', err);
+        const errMsg = String(err?.message || '');
+        if (errMsg.includes('401') || errMsg.includes('Unauthorized')) {
+          api.auth.logout();
+          try {
+            localStorage.removeItem('wg:user');
+            localStorage.removeItem('wg:client');
+          } catch (e) {}
+          if (mounted) setUser(null);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -231,6 +274,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     initSession();
     return () => {
       mounted = false;
+      clearInterval(keepAlive);
     };
   }, [fetchClientData, fetchAdminClients]);
 
@@ -247,12 +291,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setLoading(true);
       const res = await api.auth.login(email, pass);
       setUser(res.user);
+      try { localStorage.setItem('wg:user', JSON.stringify(res.user)); } catch (e) {}
       setPreviewAsState(null);
 
+      // Launch data fetching immediately
       if (res.user.role === 'client' && res.user.clientId) {
-        await fetchClientData(res.user.clientId);
+        fetchClientData(res.user.clientId);
       } else if (res.user.role === 'admin') {
-        await fetchAdminClients();
+        fetchAdminClients();
       }
 
       setLoading(false);
@@ -266,6 +312,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logout = () => {
     api.auth.logout();
+    try {
+      localStorage.removeItem('wg:user');
+      localStorage.removeItem('wg:client');
+    } catch (e) {}
     setUser(null);
     setClient(null);
     setClients({});

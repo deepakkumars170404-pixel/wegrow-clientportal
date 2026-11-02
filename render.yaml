@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: wegrow-clientportal-backend
+    runtime: node
+    rootDir: wegrowclientportal
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/clients
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false

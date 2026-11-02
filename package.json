@@ -1,0 +1,18 @@
+{
+  "name": "wegrow-clientportal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WeGrow B School Client Portal - Full Stack Transformation & Attendance Portal",
+  "workspaces": [
+    "wegrow-clientportal-frontend",
+    "wegrowclientportal"
+  ],
+  "scripts": {
+    "build": "npm --prefix wegrow-clientportal-frontend run build",
+    "build:frontend": "npm --prefix wegrow-clientportal-frontend run build",
+    "build:backend": "npm --prefix wegrowclientportal run build",
+    "dev:frontend": "npm --prefix wegrow-clientportal-frontend run dev",
+    "dev:backend": "npm --prefix wegrowclientportal run dev",
+    "start:backend": "npm --prefix wegrowclientportal run start:prod"
+  }
+}
